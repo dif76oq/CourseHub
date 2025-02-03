@@ -1,10 +1,11 @@
 package com.dif76oq.AuthMicroservice.dto;
 
+import java.util.List;
 
-//тут роли хранятся если чоо
 public class JwtDTO {
     private int id;
     private String username;
+    private List<String> roles;
 
     public int getId() {
         return id;
@@ -18,10 +19,14 @@ public class JwtDTO {
     }
     public void setUsername(String username) { this.username = username; }
 
+    public List<String> getRoles() {return roles;}
+    public void setRoles(List<String> roles) {this.roles = roles;}
+
     public JwtDTO(){}
 
-    public JwtDTO(int id, String username) {
+    public JwtDTO(int id, String username, List<String> roles) {
         this.id = id;
         this.username = username;
+        this.roles = roles;
     }
 }

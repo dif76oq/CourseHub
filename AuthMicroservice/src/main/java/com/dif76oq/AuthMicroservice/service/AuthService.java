@@ -4,7 +4,9 @@ import com.dif76oq.AuthMicroservice.dto.JwtDTO;
 import com.dif76oq.AuthMicroservice.dto.LoginDTO;
 import com.dif76oq.AuthMicroservice.exception.verificationEmail.VerificationTokenExpiredException;
 import com.dif76oq.AuthMicroservice.exception.verificationEmail.VerificationTokenNotFoundException;
+import com.dif76oq.AuthMicroservice.model.Role;
 import com.dif76oq.AuthMicroservice.model.User;
+import com.dif76oq.AuthMicroservice.repository.RoleRepository;
 import com.dif76oq.AuthMicroservice.repository.UserRepository;
 import com.dif76oq.AuthMicroservice.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,20 +16,24 @@ import org.springframework.stereotype.Service;
 
 import javax.security.auth.login.AccountNotFoundException;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final VerificationTokenService verificationTokenService;
     private final EmailService emailService;
 
     @Autowired
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, VerificationTokenService verificationTokenService, EmailService emailService) {
+    public AuthService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, JwtUtil jwtUtil, VerificationTokenService verificationTokenService, EmailService emailService) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.verificationTokenService = verificationTokenService;
@@ -41,6 +47,7 @@ public class AuthService {
         user.setUpdatedAt(user.getCreatedAt());
         user.setBalance(0);
         user.setEnabled(false);
+        user.setRoles(List.of(roleRepository.findByName("USER")));
         User savedUser = userRepository.save(user);
 
         String verificationToken = verificationTokenService.generateVerificationToken(user);
@@ -56,7 +63,10 @@ public class AuthService {
         }
 
         //JWT generation
-        JwtDTO jwtDTO = new JwtDTO(savedUser.getId(), savedUser.getUsername());
+        JwtDTO jwtDTO = new JwtDTO(savedUser.getId(), savedUser.getUsername(),
+                savedUser.getRoles().stream()
+                .map(Role::getName)
+                .collect(Collectors.toList()));
         String jwtToken = jwtUtil.generateToken(jwtDTO);
         return jwtToken;
     }
@@ -77,7 +87,10 @@ public class AuthService {
 
         if (passwordEncoder.matches(password, user.get().getPassword())) {
 
-            JwtDTO jwtDTO = new JwtDTO(user.get().getId(), user.get().getUsername());
+            JwtDTO jwtDTO = new JwtDTO(user.get().getId(), user.get().getUsername(),
+                    user.get().getRoles().stream()
+                            .map(Role::getName)
+                            .collect(Collectors.toList()));
             String token = jwtUtil.generateToken(jwtDTO);
             return token;
         } else {
@@ -85,7 +98,6 @@ public class AuthService {
         }
     }
 
-    //Можно добавить проверку, если enabled=true - возвращать что и так подтвержден
     public String verifyEmail(String token) {
         try {
             int id = verificationTokenService.confirmRegistration(token);
@@ -99,9 +111,7 @@ public class AuthService {
     }
 
     public String resendEmail(String username) {
-        //Нужно ли проверять на get из-за контекста? (в контексте точно есть, т.к. из него достали, но есть ли в БД?
-        //Для цепочки событий создал, удалил, с тем же jwt попытался сделать resend
-        //а может при удалении через репу контекст будет обновляться?
+
         User user = userRepository.findByUsername(username).get();
 
         if (!user.getEnabled()) {

@@ -25,6 +25,7 @@ public class JwtUtil {
                 .withSubject("User info")
                 .withClaim("id", jwtDTO.getId())
                 .withClaim("username", jwtDTO.getUsername())
+                .withClaim("roles", jwtDTO.getRoles())
                 .withIssuedAt(new Date())
                 .withExpiresAt(expirationDate)
                 .sign(Algorithm.HMAC256(secretKey));
@@ -38,6 +39,7 @@ public class JwtUtil {
         JwtDTO jwtDTO = new JwtDTO();
         jwtDTO.setId(jwt.getClaim("id").asInt());
         jwtDTO.setUsername(jwt.getClaim("username").asString());
+        jwtDTO.setRoles(jwt.getClaim("roles").asList(String.class));
         return jwtDTO;
     }
 }
